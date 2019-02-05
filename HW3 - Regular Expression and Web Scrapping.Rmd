@@ -1,0 +1,169 @@
+---
+title: "HW3_cq2203"
+author: "Chang Qu (cq2203)"
+date: "2018/10/1"
+output:   
+  pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+i. Open the linkhttp://www.espn.com/nba/team/schedule/_/name/BKN/seasontype/2. Save the page as NetsSchedule1819 using a .html extension.  
+
+```{r}
+nets1819 <- readLines("/Users/courtneyqu/Desktop/GR5206/NetsSchedule1819.html")
+```
+
+ii. Load the NetsSchedule1819.html file into a character vector in R. Call the vector nets1819.
+
+a. How many lines are in theNetsSchedule1819.htmlfile?
+```{r}
+# number of lines
+length(nets1819)
+```
+
+There are $874$ lines in this file.
+
+b. What is the total number of characters in the file?
+```{r}
+sum(nchar(nets1819))
+```
+
+Thre are total $621308$ characters in the file.
+
+c. What is the maximum number of characters in a single line of the file?
+```{r}
+sort(nchar(nets1819), decreasing = TRUE)[1]
+
+```
+The maximum number of character in a single of this file is $379644$.
+
+iii. Open the webpage.  You should see a table listing all the games scheduled for the 2018-2019 NBA season. There are a total of 82 regular season games scheduled. Who and when are they playing first?  Who and when are they playing last?
+
+The Nets plays Detroit on Wed, Oct. 17 at 7PM first. They play Miami on Wed, Apr. 10 at 8PM last.
+
+iv. What line in the file holds information about the game of the regular season (date, time,opponent)?
+
+In the source code from the browser, line 64 provides information about the first game and the last game. 
+
+v. Write a regular expression to extract the line that contains the time, location, and opponent of all games.
+```{r}
+
+#use the regex for dates to find the line containing all the game info
+date_express <- "[A-Z][a-z]{2}[[:punct:]][[:space:]][A-Z][a-z]{2}[[:space:]][0-9]+"
+info_line <- grep(nets1819, pattern = date_express)
+info_line
+```
+
+vi. Write a regular expression to split the whole line into 82 lines, with each line displaying the information of one game
+vii. Write a regular expression that will capture the date of the game.
+
+```{r}
+
+# find the position and length for all the game dates matches
+# because each game's information starts with its date
+matches1 <- gregexpr(pattern = date_express, text = nets1819[info_line])
+
+# access match position and match length 
+start_pt <- unlist(matches1)
+match_length <- attr(matches1[[1]],"match.length")
+
+# split the info_line into 82 lines using dates
+game_line <- vector()
+for(i in 1:length(start_pt)){
+  game_line[i] <- substr(nets1819[info_line], start = start_pt[i], stop = start_pt[i+1]-1)
+}
+
+# redefine 82th element of game_line 
+game_line[82] <- substr(nets1819[info_line], start = start_pt[82], stop = nchar(nets1819[info_line]))
+
+head(game_line, 3)
+```
+
+Combining part vi and part vii, I first uses the regular expression of the date and the function gregexp to find the location and the length of each matches in the info line, because the information of every game start with their dates. I was able to find 82 matches in the info line, which is correct because there are 82 games in a season.
+
+Then I wrote a loop to split whole line into 82 lines using their location of dates. After the loop I needed to redefine the 82th element of the game_line, because within the loop, the 82th element cannot be calculated. 
+
+Therefore, in this one chunk of code above, I was able to split the line which containing all the informations of the game into 82 lines, in which each containing the information of one game. Where the first and the last date matches the result in iii.
+
+viii. Using  the  expression  you  wrote in  (vii)  along  with  the  functions regexpr() and regmatches(), extract the dates from the text file. Store this information in a vector called date to save to use below.
+```{r}
+# find the match location and the length of the date of each game line
+matches2 <- regexpr(date_express, game_line)
+
+# extract dates using regmatches
+dates <- unlist(regmatches(game_line, matches2))
+length(dates)
+head(dates, 5)
+tail(dates, 5)
+```
+
+Our vector of dates has 82 elements, and the first and the last element is the same as what we found in part iii.
+
+ix. Use the same strategy as in (vii) and (viii) to create a timevector that stores the time of the game.
+
+```{r}
+
+#find the match location and the length of the time of each game line
+time_exp <- "[0-9][[:punct:]][0-9]{2}[[:space:]](PM)"
+matches3 <- regexpr(time_exp, game_line)
+
+# extract time 
+times <- unlist(regmatches(game_line, matches3))
+length(times)
+head(times, 5)
+tail(times, 5)
+```
+
+The vector of times has length 82, and the first and the last element is the same as what we found in part iii.
+
+x. We would now like to gather information about whether the game is home or away. This information is indicated in the schedule by either an ‘@’ or a ‘vs’ in front of the opponent.  If the Nets are playing ‘@’ their opponent’s court, the game is away. If the Nets are playing ‘vs’ the opponent, the game is at home.
+
+```{r}
+# search within the game_line for "@" and returns a logical vector
+home_log <- grepl("\\@", game_line)
+
+# create vector homes 
+homes <- vector()
+for(i in 1:82){
+  homes[i] <- ifelse(home_log[i]==TRUE, 0, 1)
+}
+
+length(homes)
+head(homes)
+tail(homes)
+```
+
+xi. Finally  we  would  like  to  find  the  opponent,  again  capture  this  information  using a regular expression. Extract these values and save them to a vector called opponent.
+```{r}
+# search for the string around the opponent
+opponent_exp <- "img alt=\"([A-Z][a-z]+|([A-Z][a-z]+[[:space:]][A-Z][a-z]+)|[A-Z]+)\""
+matches4 <- gregexpr(pattern = opponent_exp, text = game_line)
+long_string <- unlist(regmatches(game_line, matches4))
+
+match_length2 <- unlist(lapply(matches4, attr, "match.length"))
+opponent <- substr(long_string, start = 10, stop = match_length2 -1)
+length(opponent)
+head(opponent, 5)
+tail(opponent, 5)
+
+
+```
+
+xii. Construct  a  data  frame  of  the  four  variables  in  the  following  order: date, time, opponent, home. Print the frame from rows 1 to 10. Does the data match the first 10 games as seen from the web browser?
+```{r}
+
+information <- data.frame(dates, times, opponent, homes)
+head(information, 10)
+
+
+```
+The result matches.
+
+
+
+
+
+
